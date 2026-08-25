@@ -1,0 +1,25 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; color: #1a1a2e; }
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.header { display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; color: white; padding: 16px 32px; }
+.brand { font-size: 22px; font-weight: 700; }
+nav button { background: none; border: none; color: #ccc; padding: 8px 14px; margin-left: 6px; cursor: pointer; border-radius: 6px; font-size: 15px; }
+nav button.active, nav button:hover { background: #16213e; color: white; }
+main { flex: 1; padding: 24px 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+.filters { margin-bottom: 16px; }
+.filters button { margin-right: 8px; padding: 6px 14px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; }
+.filters button.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.card-img-placeholder { height: 90px; background: #e8ecf1; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; margin-bottom: 10px; }
+.card h3 { margin: 6px 0; font-size: 16px; }
+.desc { font-size: 13px; color: #666; min-height: 32px; }
+.price { font-weight: 700; color: #0f6b39; }
+.card button { width: 100%; padding: 8px; background: #1a1a2e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+.cart-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.cart-total { text-align: right; font-weight: 700; font-size: 18px; margin: 16px 0; }
+.cod-note { font-size: 13px; color: #a15c00; background: #fff6e5; padding: 8px 12px; border-radius: 6px; }
+.checkout-btn { background: #0f6b39; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 15px; cursor: pointer; }
+.orders-table { width: 100%; border-collapse: collapse; background: white; }
+.orders-table th, .orders-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+footer { text-align: center; padding: 14px; color: #888; font-size: 12px; }

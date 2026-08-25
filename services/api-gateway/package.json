@@ -1,0 +1,10 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "http-proxy-middleware": "^2.0.6",
+    "cors": "^2.8.5"
+  }
+}
