@@ -1,0 +1,16 @@
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "user_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "user_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "user-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.get("/users/:userId", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM user_profiles WHERE user_id = ?", [req.params.userId]); res.json(rows[0] || null); });
+app.put("/users/:userId", async (req, res) => { const { name, phone, address, city, country } = req.body; await pool.execute(`INSERT INTO user_profiles (user_id, name, phone, address, city, country) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), address=VALUES(address), city=VALUES(city), country=VALUES(country)`, [req.params.userId, name, phone, address, city, country]); res.json({ message: "profile saved" }); });
+app.listen(PORT, () => console.log(`user-service running on ${PORT}`));

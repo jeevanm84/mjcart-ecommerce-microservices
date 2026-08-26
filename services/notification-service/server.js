@@ -1,0 +1,15 @@
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
+const app = express(); const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "notification_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "notification_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "notification-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.post("/notifications/send", async (req, res) => { const { userId, type, message } = req.body; await pool.execute("INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)", [userId || null, type || "INFO", message || "Notification"]); res.status(201).json({ sent: true, type, message }); });
+app.get("/notifications", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM notifications ORDER BY id DESC LIMIT 50"); res.json(rows); });
+app.listen(PORT, () => console.log(`notification-service running on ${PORT}`));

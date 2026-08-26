@@ -1,0 +1,85 @@
+# Local dev / demo without Kubernetes. For real deployment use k8s/ + scripts/deploy.sh
+version: "3.8"
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports: ["3306:3306"]
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  auth-service:
+    build: ./services/auth-service
+    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass, JWT_SECRET=dev-secret]
+    depends_on: [mysql]
+
+  user-service:
+    build: ./services/user-service
+    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
+    depends_on: [mysql]
+
+  product-service:
+    build: ./services/product-service
+    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
+    depends_on: [mysql]
+
+  inventory-service:
+    build: ./services/inventory-service
+    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
+    depends_on: [mysql]
+
+  cart-service:
+    build: ./services/cart-service
+    environment: [REDIS_HOST=redis]
+    depends_on: [redis]
+
+  order-service:
+    build: ./services/order-service
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpass
+      - INVENTORY_URL=http://inventory-service:4004
+      - SHIPPING_URL=http://shipping-service:4007
+      - NOTIFICATION_URL=http://notification-service:4008
+    depends_on: [mysql, inventory-service, shipping-service, notification-service]
+
+  shipping-service:
+    build: ./services/shipping-service
+
+  notification-service:
+    build: ./services/notification-service
+
+  review-service:
+    build: ./services/review-service
+    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
+    depends_on: [mysql]
+
+  api-gateway:
+    build: ./services/api-gateway
+    ports: ["8080:8080"]
+    environment:
+      - AUTH_URL=http://auth-service:4001
+      - USER_URL=http://user-service:4002
+      - PRODUCT_URL=http://product-service:4003
+      - INVENTORY_URL=http://inventory-service:4004
+      - CART_URL=http://cart-service:4005
+      - ORDER_URL=http://order-service:4006
+      - SHIPPING_URL=http://shipping-service:4007
+      - NOTIFICATION_URL=http://notification-service:4008
+      - REVIEW_URL=http://review-service:4009
+    depends_on: [auth-service, user-service, product-service, inventory-service, cart-service, order-service, shipping-service, notification-service, review-service]
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:80"]
+    depends_on: [api-gateway]
+
+volumes:
+  mysql-data:

@@ -1,0 +1,15 @@
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
+const app = express(); const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "shipping_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "shipping_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "shipping-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.post("/shipping/create", async (req, res) => { const { orderId } = req.body; const trackingNumber = `SHIP-${Date.now()}`; await pool.execute("INSERT INTO shipments (order_id, status, tracking_number) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status), tracking_number=VALUES(tracking_number)", [orderId, "CREATED", trackingNumber]); res.status(201).json({ orderId, status: "CREATED", trackingNumber }); });
+app.get("/shipping/:orderId", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM shipments WHERE order_id = ?", [req.params.orderId]); res.json(rows[0] || null); });
+app.listen(PORT, () => console.log(`shipping-service running on ${PORT}`));
