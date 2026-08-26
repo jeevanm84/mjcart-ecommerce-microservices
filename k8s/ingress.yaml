@@ -1,25 +1,24 @@
-# On kOps, installing the ingress-nginx-controller Service (type: LoadBalancer)
-# provisions a classic AWS ELB automatically - no ALB Ingress Controller needed.
-# Point Route 53 (or your DNS) at that ELB's hostname once it's up:
-#   kubectl get svc -n ingress-nginx ingress-nginx-controller
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: mjcart-ingress
   namespace: mjcart
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-    - host: mjscart.example.com   # replace with your Route 53 domain
-      http:
-        paths:
-          - path: /api(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service: { name: api-gateway, port: { number: 8080 } }
-          - path: /(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service: { name: frontend, port: { number: 80 } }
+  - http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80

@@ -1,45 +1,16 @@
-const express = require('express');
-const mysql = require('mysql2/promise');
-const cors = require('cors');
-
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
 const app = express();
-app.use(cors());
-app.use(express.json());
-const PORT = process.env.PORT || 4002;
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'mysql',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'rootpass',
-  database: 'user_db',
-  waitForConnections: true,
-  connectionLimit: 5
-});
-
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'user-service' }));
-
-app.post('/profiles', async (req, res) => {
-  const { user_id, name, phone, address } = req.body;
-  const [result] = await pool.query(
-    'INSERT INTO profiles (user_id, name, phone, address) VALUES (?, ?, ?, ?)',
-    [user_id, name, phone, address]
-  );
-  res.status(201).json({ id: result.insertId });
-});
-
-app.get('/profiles/:userId', async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM profiles WHERE user_id = ?', [req.params.userId]);
-  if (!rows.length) return res.status(404).json({ error: 'not found' });
-  res.json(rows[0]);
-});
-
-app.put('/profiles/:userId', async (req, res) => {
-  const { name, phone, address } = req.body;
-  await pool.query(
-    'UPDATE profiles SET name=?, phone=?, address=? WHERE user_id=?',
-    [name, phone, address, req.params.userId]
-  );
-  res.json({ updated: true });
-});
-
-app.listen(PORT, () => console.log(`user-service listening on ${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "user_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "user_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "user-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.get("/users/:userId", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM user_profiles WHERE user_id = ?", [req.params.userId]); res.json(rows[0] || null); });
+app.put("/users/:userId", async (req, res) => { const { name, phone, address, city, country } = req.body; await pool.execute(`INSERT INTO user_profiles (user_id, name, phone, address, city, country) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), address=VALUES(address), city=VALUES(city), country=VALUES(country)`, [req.params.userId, name, phone, address, city, country]); res.json({ message: "profile saved" }); });
+app.listen(PORT, () => console.log(`user-service running on ${PORT}`));

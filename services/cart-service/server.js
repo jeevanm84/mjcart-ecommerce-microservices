@@ -1,47 +1,19 @@
-const express = require('express');
-const { createClient } = require('redis');
-const cors = require('cors');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-const PORT = process.env.PORT || 4005;
-
-const redisClient = createClient({ url: `redis://${process.env.REDIS_HOST || 'redis'}:6379` });
-redisClient.on('error', (err) => console.error('Redis error', err));
-redisClient.connect().catch(console.error);
-
-const cartKey = (userId) => `cart:${userId}`;
-
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'cart-service' }));
-
-app.get('/cart/:userId', async (req, res) => {
-  const data = await redisClient.get(cartKey(req.params.userId));
-  res.json(data ? JSON.parse(data) : { items: [] });
-});
-
-app.post('/cart/:userId/items', async (req, res) => {
-  const { productId, quantity, price, name } = req.body;
-  const data = await redisClient.get(cartKey(req.params.userId));
-  const cart = data ? JSON.parse(data) : { items: [] };
-  const existing = cart.items.find(i => i.productId === productId);
-  if (existing) existing.quantity += quantity;
-  else cart.items.push({ productId, quantity, price, name });
-  await redisClient.set(cartKey(req.params.userId), JSON.stringify(cart), { EX: 60 * 60 * 24 * 7 });
-  res.status(201).json(cart);
-});
-
-app.delete('/cart/:userId/items/:productId', async (req, res) => {
-  const data = await redisClient.get(cartKey(req.params.userId));
-  const cart = data ? JSON.parse(data) : { items: [] };
-  cart.items = cart.items.filter(i => String(i.productId) !== req.params.productId);
-  await redisClient.set(cartKey(req.params.userId), JSON.stringify(cart));
-  res.json(cart);
-});
-
-app.delete('/cart/:userId', async (req, res) => {
-  await redisClient.del(cartKey(req.params.userId));
-  res.json({ cleared: true });
-});
-
-app.listen(PORT, () => console.log(`cart-service listening on ${PORT}`));
+const express = require("express");
+const cors = require("cors");
+const redis = require("redis");
+const client = require("prom-client");
+const app = express(); const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "cart_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const redisClient = redis.createClient({ url: `redis://${process.env.REDIS_HOST || "redis"}:6379` });
+redisClient.on("error", err => console.log("Redis error:", err.message));
+redisClient.connect().catch(err => console.log("Redis connect failed:", err.message));
+const cartKey = userId => `cart:${userId}`;
+app.get("/health", (req, res) => res.json({ service: "cart-service", status: "ok" }));
+app.get("/ready", (req, res) => redisClient.isOpen ? res.json({ ready: true }) : res.status(500).json({ ready: false }));
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.get("/cart/:userId", async (req, res) => { const data = await redisClient.get(cartKey(req.params.userId)); res.json(data ? JSON.parse(data) : []); });
+app.post("/cart/add", async (req, res) => { const { userId, productId, name, price, quantity } = req.body; if (!userId || !productId) return res.status(400).json({ error: "userId and productId are required" }); const key = cartKey(userId); const data = await redisClient.get(key); const cart = data ? JSON.parse(data) : []; const existing = cart.find(item => Number(item.productId) === Number(productId)); if (existing) existing.quantity += Number(quantity || 1); else cart.push({ productId, name, price, quantity: Number(quantity || 1) }); await redisClient.set(key, JSON.stringify(cart), { EX: 86400 }); res.json(cart); });
+app.post("/cart/clear", async (req, res) => { const { userId } = req.body; await redisClient.del(cartKey(userId)); res.json({ message: "cart cleared" }); });
+app.listen(PORT, () => console.log(`cart-service running on ${PORT}`));

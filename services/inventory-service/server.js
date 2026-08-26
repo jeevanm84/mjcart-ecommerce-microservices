@@ -1,47 +1,16 @@
-const express = require('express');
-const mysql = require('mysql2/promise');
-const cors = require('cors');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-const PORT = process.env.PORT || 4004;
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'mysql',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'rootpass',
-  database: 'inventory_db',
-  waitForConnections: true,
-  connectionLimit: 5
-});
-
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'inventory-service' }));
-
-app.get('/stock/:productId', async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM stock WHERE product_id = ?', [req.params.productId]);
-  if (!rows.length) return res.status(404).json({ error: 'not found' });
-  res.json(rows[0]);
-});
-
-// Used internally by order-service to check + reserve stock at checkout time
-app.post('/stock/:productId/reserve', async (req, res) => {
-  const { quantity } = req.body;
-  const [rows] = await pool.query('SELECT quantity FROM stock WHERE product_id = ?', [req.params.productId]);
-  if (!rows.length || rows[0].quantity < quantity) {
-    return res.status(409).json({ error: 'insufficient stock' });
-  }
-  await pool.query('UPDATE stock SET quantity = quantity - ? WHERE product_id = ?', [quantity, req.params.productId]);
-  res.json({ reserved: quantity });
-});
-
-app.put('/stock/:productId', async (req, res) => {
-  const { quantity } = req.body;
-  await pool.query(
-    'INSERT INTO stock (product_id, quantity) VALUES (?, ?) ON DUPLICATE KEY UPDATE quantity = ?',
-    [req.params.productId, quantity, quantity]
-  );
-  res.json({ updated: true });
-});
-
-app.listen(PORT, () => console.log(`inventory-service listening on ${PORT}`));
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
+const app = express(); const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "inventory_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "inventory_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "inventory-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.get("/inventory/:productId", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM inventory WHERE product_id = ?", [req.params.productId]); res.json(rows[0] || { product_id: Number(req.params.productId), quantity: 0 }); });
+app.post("/inventory/upsert", async (req, res) => { try { const { productId, quantity } = req.body; if (!productId) return res.status(400).json({ error: "productId is required" }); const qty = Number(quantity || 50); await pool.execute("INSERT INTO inventory (product_id, quantity) VALUES (?, ?) ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)", [productId, qty]); res.status(201).json({ message: "inventory created or updated", productId, quantity: qty }); } catch (e) { res.status(500).json({ error: "inventory upsert failed", detail: e.message }); } });
+app.post("/inventory/reserve", async (req, res) => { const { productId, quantity } = req.body; const qty = Number(quantity || 1); const [result] = await pool.execute("UPDATE inventory SET quantity = quantity - ? WHERE product_id = ? AND quantity >= ?", [qty, productId, qty]); if (result.affectedRows === 0) return res.status(400).json({ error: "insufficient stock", productId, quantity: qty }); res.json({ message: "inventory reserved", productId, quantity: qty }); });
+app.listen(PORT, () => console.log(`inventory-service running on ${PORT}`));

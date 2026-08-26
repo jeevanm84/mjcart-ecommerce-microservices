@@ -4,9 +4,13 @@ metadata:
   name: mysql
   namespace: mjcart
 spec:
-  clusterIP: None   # headless service backing the StatefulSet
-  selector: { app: mysql }
-  ports: [{ port: 3306, targetPort: 3306 }]
+  clusterIP: None
+  selector:
+    app: mysql
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -16,44 +20,45 @@ metadata:
 spec:
   serviceName: mysql
   replicas: 1
-  selector: { matchLabels: { app: mysql } }
+  selector:
+    matchLabels:
+      app: mysql
   template:
-    metadata: { labels: { app: mysql } }
+    metadata:
+      labels:
+        app: mysql
     spec:
       containers:
-        - name: mysql
-          image: mysql:8.0
-          ports: [{ containerPort: 3306 }]
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom: { secretKeyRef: { name: mjcart-secrets, key: mysql-root-password } }
-          volumeMounts:
-            - name: mysql-storage
-              mountPath: /var/lib/mysql
-            - name: init-script
-              mountPath: /docker-entrypoint-initdb.d
-          readinessProbe:
-            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          livenessProbe:
-            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
-            initialDelaySeconds: 30
-            periodSeconds: 15
-          resources:
-            requests: { cpu: "250m", memory: "512Mi" }
-            limits: { cpu: "1", memory: "1Gi" }
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_ROOT_PASSWORD
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\""]
+          initialDelaySeconds: 30
+          periodSeconds: 10
       volumes:
-        - name: init-script
-          configMap: { name: mysql-init }
+      - name: mysql-init
+        configMap:
+          name: mysql-initdb
   volumeClaimTemplates:
-    - metadata: { name: mysql-storage }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        # kOps clusters don't ship a fixed StorageClass name like EKS does - it
-        # depends on your kOps version and whether the AWS EBS CSI driver addon
-        # is enabled. Run `kubectl get storageclass` after cluster creation
-        # (see scripts/create-kops-cluster.sh) and set the name it shows here.
-        # Leaving this unset uses whatever StorageClass is marked (default).
-        # storageClassName: kops-csi-1-21
-        resources: { requests: { storage: 5Gi } }
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi

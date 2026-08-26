@@ -1,36 +1,15 @@
-const express = require('express');
-const mysql = require('mysql2/promise');
-const cors = require('cors');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-const PORT = process.env.PORT || 4009;
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'mysql',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'rootpass',
-  database: 'review_db',
-  waitForConnections: true,
-  connectionLimit: 5
-});
-
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'review-service' }));
-
-app.get('/reviews/product/:productId', async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM reviews WHERE product_id = ? ORDER BY created_at DESC', [req.params.productId]);
-  res.json(rows);
-});
-
-app.post('/reviews', async (req, res) => {
-  const { product_id, user_id, rating, comment } = req.body;
-  if (rating < 1 || rating > 5) return res.status(400).json({ error: 'rating must be 1-5' });
-  const [result] = await pool.query(
-    'INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
-    [product_id, user_id, rating, comment]
-  );
-  res.status(201).json({ id: result.insertId });
-});
-
-app.listen(PORT, () => console.log(`review-service listening on ${PORT}`));
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2/promise");
+const client = require("prom-client");
+const app = express(); const PORT = process.env.PORT || 3000;
+app.use(cors()); app.use(express.json()); client.collectDefaultMetrics();
+const requests = new client.Counter({ name: "review_service_http_requests_total", help: "Total HTTP requests", labelNames: ["method", "path", "status"] });
+app.use((req, res, next) => { res.on("finish", () => requests.inc({ method: req.method, path: req.path, status: String(res.statusCode) })); next(); });
+const pool = mysql.createPool({ host: process.env.MYSQL_HOST || "mysql", user: process.env.MYSQL_USER || "root", password: process.env.MYSQL_PASSWORD || "root123", database: "review_db", waitForConnections: true, connectionLimit: 10 });
+app.get("/health", (req, res) => res.json({ service: "review-service", status: "ok" }));
+app.get("/ready", async (req, res) => { try { await pool.query("SELECT 1"); res.json({ ready: true }); } catch (e) { res.status(500).json({ ready: false, error: e.message }); } });
+app.get("/metrics", async (req, res) => { res.set("Content-Type", client.register.contentType); res.end(await client.register.metrics()); });
+app.post("/reviews", async (req, res) => { const { productId, userId, rating, comment } = req.body; const [result] = await pool.execute("INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)", [productId, userId, rating, comment]); res.status(201).json({ id: result.insertId, productId, userId, rating, comment }); });
+app.get("/reviews/product/:productId", async (req, res) => { const [rows] = await pool.execute("SELECT * FROM reviews WHERE product_id = ? ORDER BY id DESC", [req.params.productId]); res.json(rows); });
+app.listen(PORT, () => console.log(`review-service running on ${PORT}`));
