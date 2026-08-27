@@ -10,12 +10,15 @@ Build, run, observe, and deploy a complete React + Node.js system with an API ga
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/jeevanm84/mjcart-ecommerce-microservices?style=social)](https://github.com/jeevanm84/mjcart-ecommerce-microservices/stargazers)
 
-[Quick start](#quick-start) · [Learning paths](#choose-your-learning-path) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Contributing](CONTRIBUTING.md)
+[Complete end-to-end guide](docs/END_TO_END_GUIDE.md) · [Quick start](#quick-start) · [Learning paths](#choose-your-learning-path) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 > [!NOTE]
 > This is an educational, production-style reference project—not a production-ready commerce system. Checkout uses Cash on Delivery (COD); the project never accepts or stores card data.
+
+> [!TIP]
+> New here? Follow the **[complete end-to-end guide](docs/END_TO_END_GUIDE.md)** as the single canonical document—from GitHub login through local verification, pull request, merge, visibility setup, and optional Kubernetes deployment.
 
 ## Why this project exists
 
