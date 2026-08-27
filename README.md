@@ -1,103 +1,161 @@
-# MJ's Cart - E-Commerce Microservices Platform
+<div align="center">
 
-**Author:** MJ (Jeevan Kumar Mamuduri) - [github.com/jeevanm84](https://github.com/jeevanm84)
-**Payment gateway:** None, by design. Checkout is Cash-on-Delivery (COD) only.
-**Cluster:** kOps (self-managed Kubernetes on EC2), not EKS.
+# MJ's Cart
 
-## Generate the project
+### A learning-first e-commerce microservices platform
 
-This README ships alongside `create-mjcart.sh`, the script that generates
-everything below from scratch:
+Build, run, observe, and deploy a complete React + Node.js system with an API gateway, nine domain services, MySQL, Redis, Docker Compose, Kubernetes, and Prometheus.
+
+[![CI](https://github.com/jeevanm84/mjcart-ecommerce-microservices/actions/workflows/ci.yml/badge.svg)](https://github.com/jeevanm84/mjcart-ecommerce-microservices/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/jeevanm84/mjcart-ecommerce-microservices?style=social)](https://github.com/jeevanm84/mjcart-ecommerce-microservices/stargazers)
+
+[Quick start](#quick-start) · [Learning paths](#choose-your-learning-path) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+> [!NOTE]
+> This is an educational, production-style reference project—not a production-ready commerce system. Checkout uses Cash on Delivery (COD); the project never accepts or stores card data.
+
+## Why this project exists
+
+Most microservices examples show isolated snippets. MJ's Cart shows how the pieces fit together: a browser request crosses NGINX and an API gateway, reaches independently deployable services, changes state in MySQL or Redis, and exposes health and Prometheus endpoints for operations.
+
+You can use it to:
+
+- learn microservices locally with one Docker Compose command;
+- practice API gateway, database-per-service, caching, and orchestration patterns;
+- study Docker and Kubernetes manifests from a working example;
+- prepare a system-design or DevOps walkthrough;
+- contribute approachable improvements to an open-source project.
+
+## Quick start
+
+### Prerequisites
+
+- Git
+- Docker Desktop or Docker Engine with Compose v2
+- 6 GB or more of memory available to Docker
+- `curl` for the optional smoke test
+
+### Run the complete application
 
 ```bash
-export DOCKER_USER=jeevanm84
-export IMAGE_TAG=v1
-export NAMESPACE=mjcart
-./create-mjcart.sh
+git clone https://github.com/jeevanm84/mjcart-ecommerce-microservices.git
 cd mjcart-ecommerce-microservices
+cp .env.example .env
+docker compose up --build -d
 ```
 
-## Services (no payment-service)
+Wait until MySQL finishes its first-time initialization, then open:
 
-api-gateway, auth-service, user-service, product-service, inventory-service,
-cart-service, order-service, shipping-service, notification-service,
-review-service, frontend. Each backend service exposes `/health`, `/ready`,
-and `/metrics`. See `docs/ARCHITECTURE.md` and `docs/API.md` for details.
+- Storefront: <http://localhost:3000>
+- API gateway: <http://localhost:8080>
+- Product API: <http://localhost:3000/api/products>
 
-## Run locally (Docker required)
+Verify the important paths:
 
 ```bash
-# 1. Start MySQL + Redis
-docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=ChangeMe_RootPass123 -p 3306:3306 -v $PWD/database/init.sql:/docker-entrypoint-initdb.d/init.sql mysql:8.0
-docker run -d --name redis -p 6379:6379 redis:7-alpine
-
-# 2. Run each service (separate terminals), e.g.
-cd services/auth-service && npm install && MYSQL_HOST=localhost MYSQL_PASSWORD=ChangeMe_RootPass123 JWT_SECRET=mjcart-jwt-secret-change-me node server.js
-
-# 3. Run the frontend
-cd frontend && npm install && npm run dev
+./scripts/verify-local.sh
 ```
 
-## Deploy on kOps
-
-IMP: give the nodes a bigger instance type (`t3.large`+) with 50GB disks -
-this platform runs 10 backend services + MySQL + Redis + NGINX Ingress +
-Prometheus/Grafana on top.
+Stop the application without losing local database data:
 
 ```bash
-# 1. Create the cluster
-export KOPS_STATE_STORE=s3://mjcart-kops-state-<your-unique-suffix>
-./scripts/create-kops-cluster.sh
-
-# 2. Build & push images
-export DOCKER_USER=jeevanm84
-export IMAGE_TAG=v1
-./scripts/build-push.sh
-
-# 3. Install NGINX Ingress + (optional) Prometheus stack
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
-
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
-
-# 4. Deploy the platform
-./scripts/deploy.sh
-
-# 5. Verify
-./scripts/verify.sh
-kubectl get ingress -n mjcart
+docker compose down
 ```
 
-## Teardown
+For logs, resets, troubleshooting, and the manual-development workflow, see the [complete getting-started guide](docs/GETTING_STARTED.md).
+
+## Choose your learning path
+
+| Experience | Start here | What you will learn |
+|---|---|---|
+| Beginner | [Run your first order](docs/GETTING_STARTED.md#your-first-guided-demo) | Containers, API calls, logs, and service boundaries |
+| Intermediate | [Trace a checkout](docs/LEARNING_PATHS.md#intermediate-trace-a-checkout) | Gateway routing, Redis, MySQL, and service-to-service calls |
+| Experienced | [Production-readiness review](docs/LEARNING_PATHS.md#experienced-production-readiness-review) | Reliability gaps, security boundaries, observability, and scaling trade-offs |
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    U[Browser] --> F[React + NGINX]
+    F -->|/api/*| G[API Gateway]
+    G --> A[Auth]
+    G --> P[Product]
+    G --> C[Cart]
+    G --> O[Order]
+    G --> X[Other domain services]
+    A --> M[(MySQL)]
+    P --> M
+    P --> R[(Redis)]
+    C --> R
+    O --> M
+    O --> I[Inventory]
+    O --> S[Shipping]
+    O --> N[Notification]
+```
+
+The gateway exposes nine domain APIs. Every backend includes `/health`, `/ready`, and `/metrics` endpoints. The [architecture guide](docs/ARCHITECTURE.md) explains ownership, request flows, data boundaries, and deliberate trade-offs.
+
+## Services
+
+| Component | Responsibility | Data store |
+|---|---|---|
+| `frontend` | Storefront and project UI | — |
+| `api-gateway` | Routes `/api/*` requests | — |
+| `auth-service` | Registration, login, JWT validation | MySQL |
+| `user-service` | Customer profiles | MySQL |
+| `product-service` | Product catalog and list caching | MySQL + Redis |
+| `inventory-service` | Stock lookup and reservation | MySQL |
+| `cart-service` | Expiring customer carts | Redis |
+| `order-service` | COD checkout orchestration | MySQL |
+| `shipping-service` | Shipment creation and tracking | MySQL |
+| `notification-service` | Stored order notifications | MySQL |
+| `review-service` | Product reviews | MySQL |
+
+## Repository map
+
+```text
+.
+├── frontend/          React storefront served by NGINX
+├── services/          API gateway and domain services
+├── database/          Local MySQL bootstrap data
+├── k8s/               Kubernetes workloads and infrastructure
+├── scripts/           Build, deploy, verify, and cluster helpers
+├── docs/              Guided learning and technical reference
+├── docker-compose.yml Complete local environment
+└── Makefile            Friendly shortcuts for common tasks
+```
+
+## Common commands
 
 ```bash
-./scripts/delete-kops-cluster.sh
+make help      # discover commands
+make up        # build and start everything
+make status    # inspect containers
+make logs      # follow all logs
+make verify    # run local smoke checks
+make down      # stop and preserve data
+make clean     # stop and delete local data
 ```
 
-## Resume Summary
+## Kubernetes deployment
 
-Built and deployed MJ's Cart, a production-style e-commerce microservices
-platform on a self-managed Kubernetes cluster (kOps) using React, Node.js,
-MySQL, Redis, Docker, NGINX Ingress, Prometheus, and Grafana. Implemented an
-API Gateway pattern to route frontend requests to 9 independent backend
-microservices (Auth, User, Product, Inventory, Cart, Order, Shipping,
-Notification, Review). Deployed MySQL as a StatefulSet with persistent
-storage and Redis for cart/session caching and product-list caching.
-Configured Kubernetes Deployments, Services, Secrets, ConfigMaps, Ingress,
-readiness/liveness probes, resource limits, and Prometheus metrics on every
-service. Deliberately excluded a payment gateway - checkout is
-Cash-on-Delivery only, keeping the platform out of PCI card-data scope.
+The repository includes a self-managed Kubernetes path using kOps on AWS. It creates real cloud resources and can incur charges. Read the [deployment runbook](docs/RUNBOOK.md) before running any cluster script.
 
-## Interview Explanation
+## Project status and boundaries
 
-In this project I designed a real-time e-commerce microservices application
-called MJ's Cart. The user reaches the React frontend through an AWS load
-balancer and an NGINX Ingress Controller running on a kOps-managed
-Kubernetes cluster. The frontend calls backend APIs through an API Gateway,
-which proxies traffic to independent microservices, each with its own MySQL
-database and its own health/readiness/metrics endpoints. The Order Service
-coordinates with Inventory, Shipping, and Notification services to complete
-checkout - there is no Payment Service in this design, so an order is
-placed as Cash-on-Delivery immediately after stock is reserved. The whole
-platform is monitored with Prometheus and Grafana.
+MJ's Cart demonstrates infrastructure and integration patterns in compact code. Important production concerns—authorization enforcement, input schemas, migrations, distributed transactions, retries, tracing, TLS, secret management, automated tests, and high availability—remain intentional extension points. See the [experienced learning path](docs/LEARNING_PATHS.md#experienced-production-readiness-review).
+
+## Contributing
+
+Contributions from first-time and experienced contributors are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), use the issue templates, and keep each pull request focused. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) and report vulnerabilities through [SECURITY.md](SECURITY.md).
+
+## Author
+
+Created and maintained by [Jeevan Kumar Mamuduri (@jeevanm84)](https://github.com/jeevanm84). If this project helps you, consider starring it, sharing what you learned, or contributing an improvement.
+
+## License
+
+Released under the [MIT License](LICENSE).

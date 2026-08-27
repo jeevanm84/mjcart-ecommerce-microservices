@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a focused improvement
+title: "[Feature]: "
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or learning goal
+      description: What becomes easier, safer, or more educational?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe behavior and affected components, not only implementation details.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+  - type: dropdown
+    id: level
+    attributes:
+      label: Intended audience
+      options:
+        - All experience levels
+        - Beginner
+        - Intermediate
+        - Experienced
+    validations:
+      required: true

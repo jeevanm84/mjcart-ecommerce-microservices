@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible problem in MJ's Cart
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve MJ's Cart. Please remove secrets and personal data from logs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the project with ...
+        2. Open ...
+        3. Select ...
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Docker Compose
+        - Kubernetes / kOps
+        - Manual Node.js development
+        - Documentation only
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste a short, sanitized excerpt. Do not include credentials.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: git rev-parse --short HEAD
