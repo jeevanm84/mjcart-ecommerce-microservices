@@ -39,9 +39,11 @@ curl --version
 
 If `docker info` fails, start Docker Desktop and wait until it reports that the engine is running.
 
-### 1.2 Authenticate as the correct GitHub account
+### 1.2 Authenticate only as `jeevanm84`
 
-The repository belongs to **`jeevanm84`**. An account displayed in the IDE does not necessarily control credentials used by terminal Git.
+The repository belongs to **`jeevanm84`**. Use only this personal GitHub account for MJ's Cart. Do not use a corporate GitHub identity for this repository.
+
+An account displayed in IntelliJ IDEA does not necessarily control credentials used by Git in IntelliJ's terminal, so verify both the IDE and terminal configuration.
 
 Check the terminal account:
 
@@ -49,11 +51,10 @@ Check the terminal account:
 gh auth status
 ```
 
-Continue only if it says you are logged into `github.com` as `jeevanm84`. If it shows another account or an invalid token:
+Continue only if it says you are logged into `github.com` as `jeevanm84`. If it shows another account or an invalid token, remove that account using the username shown by `gh auth status`, then authenticate again:
 
 ```bash
-gh auth logout -h github.com -u mamudurijk
-gh auth logout -h github.com -u mamuduri-jeevankumar_bsfms
+gh auth logout -h github.com -u <incorrect-username>
 gh auth login -h github.com -p https -w
 gh auth setup-git
 gh auth status
@@ -68,6 +69,21 @@ Logged in to github.com account jeevanm84
 ```
 
 Do not push if a different username is displayed.
+
+In IntelliJ IDEA, open **Settings → Version Control → GitHub** and keep `jeevanm84` as the account used for this project. Remove unrelated accounts from the IDE only if you no longer need them there; account removal can affect other repositories.
+
+Run these checks from IntelliJ's terminal before every push:
+
+```bash
+gh auth status
+git remote get-url origin
+```
+
+The results must identify `jeevanm84` and this repository:
+
+```text
+https://github.com/jeevanm84/mjcart-ecommerce-microservices
+```
 
 ### 1.3 Configure the commit identity for this repository
 
