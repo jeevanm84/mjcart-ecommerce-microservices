@@ -10,7 +10,7 @@ Build, run, observe, and deploy a complete React + Node.js system with an API ga
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/jeevanm84/mjcart-ecommerce-microservices?style=social)](https://github.com/jeevanm84/mjcart-ecommerce-microservices/stargazers)
 
-[Complete end-to-end guide](docs/END_TO_END_GUIDE.md) · [Quick start](#quick-start) · [Learning paths](#choose-your-learning-path) · [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Contributing](CONTRIBUTING.md)
+[Complete end-to-end guide](docs/END_TO_END_GUIDE.md) · [Quick start](#quick-start) · [Learning paths](#choose-your-learning-path) · [Architecture](docs/ARCHITECTURE.md) · [Code structure](docs/CODE_STRUCTURE.md) · [API reference](docs/API.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -101,6 +101,37 @@ flowchart LR
 
 The gateway exposes nine domain APIs. Every backend includes `/health`, `/ready`, and `/metrics` endpoints. The [architecture guide](docs/ARCHITECTURE.md) explains ownership, request flows, data boundaries, and deliberate trade-offs.
 
+### Checkout flow
+
+```mermaid
+sequenceDiagram
+    actor Shopper
+    participant UI as React storefront
+    participant Gateway as API gateway
+    participant Order as Order service
+    participant Inventory as Inventory service
+    participant MySQL
+    participant Shipping as Shipping service
+    participant Notify as Notification service
+
+    Shopper->>UI: Place order (COD)
+    UI->>Gateway: POST /api/orders
+    Gateway->>Order: POST /orders
+    loop Every cart item
+        Order->>Inventory: POST /inventory/reserve
+        Inventory->>MySQL: Atomically reduce stock
+    end
+    Order->>MySQL: Store order and line items
+    Order->>Shipping: Create shipment
+    Shipping->>MySQL: Store tracking record
+    Order->>Notify: Store ORDER_PLACED message
+    Notify->>MySQL: Insert notification
+    Order-->>UI: Order ID, total, status, shipment
+    UI->>Gateway: POST /api/cart/clear
+```
+
+This synchronous teaching flow deliberately exposes distributed-transaction trade-offs. See [Architecture](docs/ARCHITECTURE.md#checkout-sequence-and-failure-boundary) for the failure boundary and production extensions.
+
 ## Services
 
 | Component | Responsibility | Data store |
@@ -117,18 +148,50 @@ The gateway exposes nine domain APIs. Every backend includes `/health`, `/ready`
 | `notification-service` | Stored order notifications | MySQL |
 | `review-service` | Product reviews | MySQL |
 
-## Repository map
+## Code structure and change guide
 
 ```text
 .
-├── frontend/          React storefront served by NGINX
-├── services/          API gateway and domain services
-├── database/          Local MySQL bootstrap data
-├── k8s/               Kubernetes workloads and infrastructure
-├── scripts/           Build, deploy, verify, and cluster helpers
-├── docs/              Guided learning and technical reference
-├── docker-compose.yml Complete local environment
-└── Makefile            Friendly shortcuts for common tasks
+├── frontend/
+│   ├── src/main.jsx        Storefront state, screens, and API calls
+│   ├── src/style.css       Responsive visual design
+│   └── nginx.conf          Serves React and proxies /api to the gateway
+├── services/
+│   ├── api-gateway/        Public /api/* routing boundary
+│   └── *-service/          One server.js, package, and Docker image per domain
+├── database/init.sql       Local schemas and seed data
+├── k8s/                    Namespace, data stores, workloads, ingress, monitoring
+├── scripts/                Build, deploy, verify, and kOps lifecycle helpers
+├── docs/                   Guided learning and technical reference
+├── docker-compose.yml      Complete local dependency graph
+└── Makefile                Friendly entry points for common tasks
+```
+
+| Change you want | Start here | Then verify |
+|---|---|---|
+| Storefront behavior or styling | `frontend/src/main.jsx`, `frontend/src/style.css` | Browser plus `make verify` |
+| Public API route | `services/api-gateway/server.js` | [Gateway route map](docs/API.md#gateway-route-map) |
+| Domain behavior | `services/<domain>-service/server.js` | Service health and relevant API call |
+| Database shape or seed data | `database/init.sql` | Recreate local volumes with `make clean` |
+| Local runtime wiring | `docker-compose.yml`, `.env.example` | `make up`, `make status`, `make verify` |
+| Kubernetes deployment | `k8s/`, `scripts/deploy.sh` | [Deployment runbook](docs/RUNBOOK.md) |
+| CI validation | `.github/workflows/ci.yml` | Open a pull request and inspect `Validate project` |
+
+The [complete code-structure guide](docs/CODE_STRUCTURE.md) traces a request from React to storage and gives a safe checklist for adding a service or endpoint.
+
+### From change to running system
+
+```mermaid
+flowchart LR
+    B[Feature branch] --> PR[Pull request]
+    PR --> CI[Validate project]
+    CI --> M[Squash or rebase to main]
+    M --> D{Runtime target}
+    D -->|Local learning| C[Docker Compose build]
+    D -->|Cluster learning| K[Build and push images]
+    C --> V[verify-local.sh]
+    K --> A[Apply Kubernetes manifests]
+    A --> E[verify.sh]
 ```
 
 ## Common commands
@@ -157,7 +220,7 @@ Contributions from first-time and experienced contributors are welcome. Start wi
 
 ## Author
 
-Created and maintained by [Jeevan Kumar Mamuduri (@jeevanm84)](https://github.com/jeevanm84). If this project helps you, consider starring it, sharing what you learned, or contributing an improvement.
+Created and maintained by [@jeevanm84](https://github.com/jeevanm84). If this project helps you, consider starring it, sharing what you learned, or contributing an improvement.
 
 ## License
 

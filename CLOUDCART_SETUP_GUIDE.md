@@ -1,7 +1,7 @@
 # CloudCart E-Commerce Microservices — Complete Setup Guide
 
 **Project:** CloudCart E-Commerce Microservices Platform  
-**Designed By:** MJ (Jeevan Kumar Mamuduri)  
+**Designed By:** [@jeevanm84](https://github.com/jeevanm84)
 **Status:** Production-Ready | **Last Updated:** August 26, 2026
 
 ---

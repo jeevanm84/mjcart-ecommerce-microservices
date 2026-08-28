@@ -1307,7 +1307,7 @@ EOF
 cat > README.md <<EOF
 # MJ's Cart - E-Commerce Microservices Platform
 
-**Author:** MJ (Jeevan Kumar Mamuduri) - [github.com/jeevanm84](https://github.com/jeevanm84)
+**Author:** [@jeevanm84](https://github.com/jeevanm84)
 **Payment gateway:** None, by design. Checkout is Cash-on-Delivery (COD) only.
 **Cluster:** kOps (self-managed Kubernetes on EC2), not EKS.
 

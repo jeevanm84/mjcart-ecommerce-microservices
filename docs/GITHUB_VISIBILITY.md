@@ -23,7 +23,7 @@ Also enable **Issues** and, when you can actively moderate it, **Discussions**. 
 
 The public account currently needs a human-readable name and a focused introduction. Recommended profile fields:
 
-- **Name:** Jeevan Kumar Mamuduri
+- **Name:** jeevanm84
 - **Bio:** Cloud & DevOps engineer building practical AWS, Kubernetes, and microservices learning projects.
 - **Location:** Add only if you want it public.
 - **Website:** Link a portfolio or LinkedIn only if it is current.
