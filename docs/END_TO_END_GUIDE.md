@@ -90,7 +90,7 @@ https://github.com/jeevanm84/mjcart-ecommerce-microservices
 Use a repository-local identity so personal work does not use a company email:
 
 ```bash
-git config user.name "Jeevan Kumar Mamuduri"
+git config user.name "jeevanm84"
 git config user.email "97403155+jeevanm84@users.noreply.github.com"
 ```
 
@@ -407,7 +407,7 @@ jeevanm84
 
 Copy [the prepared profile README](profile/README.md) into that repository as its root `README.md`. Also set these profile fields:
 
-- **Name:** Jeevan Kumar Mamuduri
+- **Name:** jeevanm84
 - **Bio:** Cloud & DevOps engineer building practical AWS, Kubernetes, and microservices learning projects.
 
 Follow the complete [visibility playbook](GITHUB_VISIBILITY.md) for the launch checklist and four-week publishing plan.

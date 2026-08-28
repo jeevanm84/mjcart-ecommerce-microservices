@@ -1,7 +1,7 @@
 # CloudCart E-Commerce Microservices — Interview Explanation & Demo Guide
 
 **Project Name:** CloudCart E-Commerce Microservices Platform  
-**Designed By:** MJ (Jeevan Kumar Mamuduri)  
+**Designed By:** [@jeevanm84](https://github.com/jeevanm84)
 **GitHub:** https://github.com/jeevanm84/mjcart-ecommerce-microservices
 
 ---
