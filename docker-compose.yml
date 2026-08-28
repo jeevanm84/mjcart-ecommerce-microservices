@@ -1,85 +1,149 @@
-# Local dev / demo without Kubernetes. For real deployment use k8s/ + scripts/deploy.sh
-version: "3.8"
+name: mjcart
+
+x-mysql-environment: &mysql-environment
+  MYSQL_HOST: mysql
+  MYSQL_USER: root
+  MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+
+x-mysql-service: &mysql-service
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+
 services:
   mysql:
     image: mysql:8.0
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-    ports: ["3306:3306"]
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    ports:
+      - "3306:3306"
     volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   auth-service:
+    <<: *mysql-service
     build: ./services/auth-service
-    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass, JWT_SECRET=dev-secret]
-    depends_on: [mysql]
+    environment:
+      <<: *mysql-environment
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret}
 
   user-service:
+    <<: *mysql-service
     build: ./services/user-service
-    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
-    depends_on: [mysql]
+    environment: *mysql-environment
 
   product-service:
+    restart: unless-stopped
     build: ./services/product-service
-    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
-    depends_on: [mysql]
+    environment:
+      <<: *mysql-environment
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   inventory-service:
+    <<: *mysql-service
     build: ./services/inventory-service
-    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
-    depends_on: [mysql]
+    environment: *mysql-environment
 
   cart-service:
+    restart: unless-stopped
     build: ./services/cart-service
-    environment: [REDIS_HOST=redis]
-    depends_on: [redis]
-
-  order-service:
-    build: ./services/order-service
     environment:
-      - DB_HOST=mysql
-      - DB_USER=root
-      - DB_PASSWORD=rootpass
-      - INVENTORY_URL=http://inventory-service:4004
-      - SHIPPING_URL=http://shipping-service:4007
-      - NOTIFICATION_URL=http://notification-service:4008
-    depends_on: [mysql, inventory-service, shipping-service, notification-service]
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
 
   shipping-service:
+    <<: *mysql-service
     build: ./services/shipping-service
+    environment: *mysql-environment
 
   notification-service:
+    <<: *mysql-service
     build: ./services/notification-service
+    environment: *mysql-environment
 
   review-service:
+    <<: *mysql-service
     build: ./services/review-service
-    environment: [DB_HOST=mysql, DB_USER=root, DB_PASSWORD=rootpass]
-    depends_on: [mysql]
+    environment: *mysql-environment
+
+  order-service:
+    <<: *mysql-service
+    build: ./services/order-service
+    environment:
+      <<: *mysql-environment
+      INVENTORY_URL: http://inventory-service:3000
+      SHIPPING_URL: http://shipping-service:3000
+      NOTIFICATION_URL: http://notification-service:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      inventory-service:
+        condition: service_started
+      shipping-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
 
   api-gateway:
+    restart: unless-stopped
     build: ./services/api-gateway
-    ports: ["8080:8080"]
+    ports:
+      - "8080:3000"
     environment:
-      - AUTH_URL=http://auth-service:4001
-      - USER_URL=http://user-service:4002
-      - PRODUCT_URL=http://product-service:4003
-      - INVENTORY_URL=http://inventory-service:4004
-      - CART_URL=http://cart-service:4005
-      - ORDER_URL=http://order-service:4006
-      - SHIPPING_URL=http://shipping-service:4007
-      - NOTIFICATION_URL=http://notification-service:4008
-      - REVIEW_URL=http://review-service:4009
-    depends_on: [auth-service, user-service, product-service, inventory-service, cart-service, order-service, shipping-service, notification-service, review-service]
+      AUTH_URL: http://auth-service:3000
+      USER_URL: http://user-service:3000
+      PRODUCT_URL: http://product-service:3000
+      INVENTORY_URL: http://inventory-service:3000
+      CART_URL: http://cart-service:3000
+      ORDER_URL: http://order-service:3000
+      SHIPPING_URL: http://shipping-service:3000
+      NOTIFICATION_URL: http://notification-service:3000
+      REVIEW_URL: http://review-service:3000
+    depends_on:
+      - auth-service
+      - user-service
+      - product-service
+      - inventory-service
+      - cart-service
+      - order-service
+      - shipping-service
+      - notification-service
+      - review-service
 
   frontend:
+    restart: unless-stopped
     build: ./frontend
-    ports: ["3000:80"]
-    depends_on: [api-gateway]
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
 
 volumes:
   mysql-data:
