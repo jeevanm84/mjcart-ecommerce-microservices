@@ -81,7 +81,7 @@ For logs, resets, troubleshooting, and the manual-development workflow, see the 
 ## Architecture at a glance
 
 ```mermaid
-flowchart LR
+flowchart TB
     U[Browser] --> F[React + NGINX]
     F -->|/api/*| G[API Gateway]
     G --> A[Auth]
@@ -182,7 +182,7 @@ The [complete code-structure guide](docs/CODE_STRUCTURE.md) traces a request fro
 ### From change to running system
 
 ```mermaid
-flowchart LR
+flowchart TB
     B[Feature branch] --> PR[Pull request]
     PR --> CI[Validate project]
     CI --> M[Squash or rebase to main]
