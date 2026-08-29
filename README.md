@@ -214,6 +214,20 @@ The repository includes a self-managed Kubernetes path using kOps on AWS. It cre
 
 MJ's Cart demonstrates infrastructure and integration patterns in compact code. Important production concerns—authorization enforcement, input schemas, migrations, distributed transactions, retries, tracing, TLS, secret management, automated tests, and high availability—remain intentional extension points. See the [experienced learning path](docs/LEARNING_PATHS.md#experienced-production-readiness-review).
 
+## Portfolio roadmap
+
+MJ's Cart is the capstone system in the [jeevanm84 engineering portfolio](https://github.com/jeevanm84). Build the supporting capabilities in this order:
+
+```text
+Git foundations → Terraform infrastructure → Packer images
+→ Kubernetes platform engineering → MJCart integration and operations
+```
+
+- [Git Command Master Map](https://github.com/jeevanm84/git-command-master-map) — collaboration, recovery and debugging foundations
+- [Terraform AWS HA Web Platform](https://github.com/jeevanm84/terraform-aws-ha-web-platform) — modular AWS infrastructure, tests, state and OIDC
+- [Packer AWS Golden Image Pipeline](https://github.com/jeevanm84/packer-aws-golden-image-pipeline) — immutable-image lifecycle and verification
+- [Kubernetes Zero to Production](https://github.com/jeevanm84/kubernetes-zero-to-production) — secure local workloads, failure labs, GitOps and production architecture
+
 ## Contributing
 
 Contributions from first-time and experienced contributors are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), use the issue templates, and keep each pull request focused. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) and report vulnerabilities through [SECURITY.md](SECURITY.md).
