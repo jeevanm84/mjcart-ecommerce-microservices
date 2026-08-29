@@ -184,7 +184,7 @@ This is a deliberately synchronous teaching implementation, not an atomic distri
 ## Delivery flow
 
 ```mermaid
-flowchart LR
+flowchart TB
     Code[Feature branch] --> PR[Pull request]
     PR --> CI[Validate project]
     CI --> Review[Review and resolved conversations]

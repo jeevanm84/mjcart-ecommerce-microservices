@@ -57,7 +57,7 @@ Generated folders such as `frontend/node_modules/`, `frontend/dist/`, IDE metada
 ## Request path through the code
 
 ```mermaid
-flowchart LR
+flowchart TB
     A[Browser action] --> B[frontend/src/main.jsx]
     B -->|fetch /api/...| C[frontend/nginx.conf]
     C --> D[services/api-gateway/server.js]
